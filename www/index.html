@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Moraes</title>
+<style>
+  body { margin:0; font-family:sans-serif; background:#111; color:#fff;
+         display:flex; flex-direction:column; height:100vh; }
+  h1 { margin:0; padding:16px; background:#3f51b5; font-size:20px; }
+  #chat { flex:1; overflow-y:auto; padding:12px; }
+  .msg { margin:8px 0; padding:10px 14px; border-radius:14px;
+         max-width:85%; white-space:pre-wrap; }
+  .eu { background:#3f51b5; margin-left:auto; }
+  .ia { background:#2a2a2a; }
+  #barra { display:flex; padding:8px; gap:8px; background:#1c1c1c; }
+  #texto { flex:1; padding:12px; border-radius:20px; border:0;
+           font-size:16px; }
+  button { padding:12px 18px; border:0; border-radius:20px;
+           background:#3f51b5; color:#fff; font-size:16px; }
+</style>
+</head>
+<body>
+<h1>Moraes</h1>
+<div id="chat"></div>
+<div id="barra">
+  <input id="texto" placeholder="Digite sua pergunta">
+  <button id="enviar">Enviar</button>
+</div>
+<script>
+const chat = document.getElementById("chat");
+const texto = document.getElementById("texto");
+const historico = [];
+
+function mostrar(classe, conteudo) {
+  const d = document.createElement("div");
+  d.className = "msg " + classe;
+  d.textContent = conteudo;
+  chat.appendChild(d);
+  chat.scrollTop = chat.scrollHeight;
+  return d;
+}
+
+async function enviar() {
+  const pergunta = texto.value.trim();
+  if (!pergunta) return;
+
+  let chave = localStorage.getItem("chave");
+  if (!chave) {
+    chave = prompt("Cole aqui sua chave da API (fica só no seu celular):");
+    if (!chave) return;
+    localStorage.setItem("chave", chave.trim());
+  }
+
+  texto.value = "";
+  mostrar("eu", pergunta);
+  historico.push({ role: "user", content: pergunta });
+  const caixa = mostrar("ia", "Pensando…");
+
+  try {
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": localStorage.getItem("chave"),
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-5-5",
+        max_tokens: 1000,
+        system: "Você é a Moraes, uma assistente simpática que responde em português.",
+        messages: historico
+      })
+    });
+    const dados = await r.json();
+    if (dados.error) throw new Error(dados.error.message);
+    const resposta = dados.content[0].text;
+    historico.push({ role: "assistant", content: resposta });
+    caixa.textContent = resposta;
+  } catch (e) {
+    historico.pop();
+    caixa.textContent = "Erro: " + e.message;
+    if (/api.key|auth/i.test(e.message)) localStorage.removeItem("chave");
+  }
+}
+
+document.getElementById("enviar").onclick = enviar;
+texto.addEventListener("keydown", e => { if (e.key === "Enter") enviar(); });
+</script>
+</body>
+</html>
