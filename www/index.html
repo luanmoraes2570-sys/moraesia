@@ -5,89 +5,173 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Moraes</title>
 <style>
-  body { margin:0; font-family:sans-serif; background:#111; color:#fff;
-         display:flex; flex-direction:column; height:100vh; }
-  h1 { margin:0; padding:16px; background:#3f51b5; font-size:20px; }
-  #chat { flex:1; overflow-y:auto; padding:12px; }
-  .msg { margin:8px 0; padding:10px 14px; border-radius:14px;
-         max-width:85%; white-space:pre-wrap; }
-  .eu { background:#3f51b5; margin-left:auto; }
-  .ia { background:#2a2a2a; }
-  #barra { display:flex; padding:8px; gap:8px; background:#1c1c1c; }
-  #texto { flex:1; padding:12px; border-radius:20px; border:0;
-           font-size:16px; }
-  button { padding:12px 18px; border:0; border-radius:20px;
-           background:#3f51b5; color:#fff; font-size:16px; }
+*{box-sizing:border-box}
+body{margin:0;font-family:sans-serif;background:#0f0d16;color:#e6e3f2;display:flex;flex-direction:column;height:100vh;overflow:hidden}
+#topo{display:flex;align-items:center;gap:8px;padding:10px;background:#15121f;border-bottom:1px solid #2a2733}
+.ic{background:none;border:0;color:#b8a5ff;font-size:26px;padding:4px 8px;border-radius:0}
+.foto{border-radius:50%;object-fit:cover;background:#0f0d16}
+#av{width:42px;height:42px;border:2px solid #7c5cff}
+#info{flex:1}
+#nome{font-size:16px;font-weight:bold}
+#st{font-size:11px;color:#3fd8ff}
+#chat{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+.lin{display:flex;align-items:flex-end;gap:8px}
+.lin.eu{justify-content:flex-end}
+.mini{width:28px;height:28px;flex:none}
+.msg{max-width:78%;padding:10px 13px;font-size:15px;line-height:1.45;white-space:pre-wrap;word-wrap:break-word}
+.eu .msg{background:#7c5cff;color:#fff;border-radius:16px 16px 4px 16px}
+.ia .msg{background:#1c1928;border-radius:16px 16px 16px 4px}
+#barra{display:flex;align-items:center;gap:8px;padding:10px;background:#15121f}
+#texto{flex:1;padding:12px 16px;border-radius:22px;border:0;font-size:16px;background:#1c1928;color:#fff;outline:none}
+#enviar{width:44px;height:44px;border-radius:50%;border:0;background:#7c5cff;color:#fff;font-size:18px;padding:0}
+#fundo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:5}
+#menu{position:fixed;top:0;bottom:0;left:-85%;width:80%;background:#15121f;z-index:6;padding:14px;display:flex;flex-direction:column;gap:10px;transition:left .2s}
+#menu.abre{left:0}
+#fundo.abre{display:block}
+#novo{padding:12px;border:0;border-radius:12px;background:#7c5cff;color:#fff;font-size:16px}
+#lista{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
+.item{display:flex;align-items:center;background:#1c1928;border-radius:12px;padding:12px;font-size:14px}
+.item.sel{border:1px solid #7c5cff}
+.item span{flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.item b{color:#8b86a3;font-size:20px;padding:0 6px}
 </style>
 </head>
 <body>
-<h1>Moraes</h1>
+<div id="topo">
+  <button class="ic" id="abrir">&#9776;</button>
+  <img id="av" class="foto" alt="foto">
+  <div id="info"><div id="nome">Moraes</div><div id="st">online agora</div></div>
+  <button class="ic" id="mais">+</button>
+</div>
 <div id="chat"></div>
 <div id="barra">
-  <input id="texto" placeholder="Digite sua pergunta">
-  <button id="enviar">Enviar</button>
+  <input id="texto" placeholder="Pergunte qualquer coisa">
+  <button id="enviar">&#10148;</button>
 </div>
+<div id="fundo"></div>
+<div id="menu">
+  <button id="novo">+ Nova conversa</button>
+  <div id="lista"></div>
+</div>
+<input type="file" id="arq" accept="image/*" style="display:none">
 <script>
-const chat = document.getElementById("chat");
-const texto = document.getElementById("texto");
-const historico = [];
-
-function mostrar(classe, conteudo) {
-  const d = document.createElement("div");
-  d.className = "msg " + classe;
-  d.textContent = conteudo;
-  chat.appendChild(d);
-  chat.scrollTop = chat.scrollHeight;
-  return d;
+const svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#0f0d16"/><ellipse cx="50" cy="52" rx="36" ry="13" fill="none" stroke="#3fd8ff" stroke-width="2" transform="rotate(-24 50 52)"/><path d="M26 72 L26 34 L50 56 L74 34 L74 72" fill="none" stroke="#7c5cff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="26" cy="34" r="5" fill="#b8a5ff"/><circle cx="74" cy="34" r="5" fill="#b8a5ff"/><circle cx="50" cy="56" r="5" fill="#3fd8ff"/></svg>';
+const LOGO='data:image/svg+xml;utf8,'+encodeURIComponent(svg);
+const $=id=>document.getElementById(id);
+let convs=JSON.parse(localStorage.getItem("moraes_convs")||"[]");
+let atual=localStorage.getItem("moraes_atual");
+function foto(){return localStorage.getItem("moraes_foto")||LOGO}
+function salvar(){
+  localStorage.setItem("moraes_convs",JSON.stringify(convs));
+  localStorage.setItem("moraes_atual",atual);
 }
-
-async function enviar() {
-  const pergunta = texto.value.trim();
-  if (!pergunta) return;
-
-  let chave = localStorage.getItem("chave_gemini");
-  if (!chave) {
-    chave = prompt("Cole aqui sua chave do Gemini (fica só no seu celular):");
-    if (!chave) return;
-    localStorage.setItem("chave_gemini", chave.trim());
+function conv(){return convs.find(c=>c.id===atual)}
+function fechar(){$("menu").classList.remove("abre");$("fundo").classList.remove("abre")}
+function nova(){
+  const c={id:String(Date.now()),titulo:"Nova conversa",msgs:[]};
+  convs.unshift(c);atual=c.id;salvar();render();fechar();
+}
+function bolha(cl,txt){
+  const l=document.createElement("div");
+  l.className="lin "+cl;
+  if(cl==="ia"){
+    const i=document.createElement("img");
+    i.className="foto mini";i.src=foto();l.appendChild(i);
   }
-
-  texto.value = "";
-  mostrar("eu", pergunta);
-  historico.push({ role: "user", parts: [{ text: pergunta }] });
-  const caixa = mostrar("ia", "Pensando…");
-
-  try {
-    const r = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": localStorage.getItem("chave_gemini")
-        },
-        body: JSON.stringify({
-          system_instruction: {
-            parts: [{ text: "Você é a Moraes, uma assistente simpática que responde em português." }]
-          },
-          contents: historico
-        })
-      }
-    );
-    const dados = await r.json();
-    if (dados.error) throw new Error(dados.error.message);
-    const resposta = dados.candidates[0].content.parts[0].text;
-    historico.push({ role: "model", parts: [{ text: resposta }] });
-    caixa.textContent = resposta;
-  } catch (e) {
-    historico.pop();
-    caixa.textContent = "Erro: " + e.message;
-    if (/api.key|auth/i.test(e.message)) localStorage.removeItem("chave_gemini");
+  const m=document.createElement("div");
+  m.className="msg";m.textContent=txt;l.appendChild(m);
+  $("chat").appendChild(l);
+  $("chat").scrollTop=$("chat").scrollHeight;
+  return m;
+}
+function render(){
+  $("av").src=foto();
+  $("chat").innerHTML="";
+  const c=conv();
+  if(!c.msgs.length) bolha("ia","Oi! Eu sou a Moraes. Como posso te ajudar hoje?");
+  c.msgs.forEach(m=>bolha(m.role==="user"?"eu":"ia",m.parts[0].text));
+  const lista=$("lista");lista.innerHTML="";
+  convs.forEach(x=>{
+    const d=document.createElement("div");
+    d.className="item"+(x.id===atual?" sel":"");
+    const s=document.createElement("span");s.textContent=x.titulo;
+    s.onclick=()=>{atual=x.id;salvar();render();fechar()};
+    const b=document.createElement("b");b.textContent="\u00d7";
+    b.onclick=()=>{
+      convs=convs.filter(y=>y.id!==x.id);
+      if(!convs.length){nova();return}
+      if(atual===x.id)atual=convs[0].id;
+      salvar();render();
+    };
+    d.appendChild(s);d.appendChild(b);lista.appendChild(d);
+  });
+}
+async function enviar(){
+  const p=$("texto").value.trim();
+  if(!p)return;
+  let chave=localStorage.getItem("chave_gemini");
+  if(!chave){
+    chave=prompt("Cole aqui sua chave do Gemini (fica s\u00f3 no seu celular):");
+    if(!chave)return;
+    localStorage.setItem("chave_gemini",chave.trim());
+  }
+  const c=conv();
+  if(!c.msgs.length){
+    c.titulo=p.slice(0,28);
+    $("chat").innerHTML="";
+  }
+  $("texto").value="";
+  bolha("eu",p);
+  c.msgs.push({role:"user",parts:[{text:p}]});
+  salvar();render();
+  const caixa=bolha("ia","Pensando\u2026");
+  try{
+    const r=await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent",{
+      method:"POST",
+      headers:{"Content-Type":"application/json","x-goog-api-key":localStorage.getItem("chave_gemini")},
+      body:JSON.stringify({
+        system_instruction:{parts:[{text:"Voc\u00ea \u00e9 a Moraes, uma assistente simp\u00e1tica que responde em portugu\u00eas."}]},
+        contents:c.msgs
+      })
+    });
+    const d=await r.json();
+    if(d.error)throw new Error(d.error.message);
+    const t=d.candidates[0].content.parts[0].text;
+    c.msgs.push({role:"model",parts:[{text:t}]});
+    salvar();caixa.textContent=t;
+    $("chat").scrollTop=$("chat").scrollHeight;
+    render();
+  }catch(e){
+    c.msgs.pop();salvar();
+    caixa.textContent="Erro: "+e.message;
+    if(/api.key|auth/i.test(e.message))localStorage.removeItem("chave_gemini");
   }
 }
-
-document.getElementById("enviar").onclick = enviar;
-texto.addEventListener("keydown", e => { if (e.key === "Enter") enviar(); });
+$("enviar").onclick=enviar;
+$("texto").addEventListener("keydown",e=>{if(e.key==="Enter")enviar()});
+$("abrir").onclick=()=>{$("menu").classList.add("abre");$("fundo").classList.add("abre")};
+$("fundo").onclick=fechar;
+$("novo").onclick=nova;
+$("mais").onclick=nova;
+$("av").onclick=()=>$("arq").click();
+$("arq").onchange=e=>{
+  const f=e.target.files[0];
+  if(!f)return;
+  const img=new Image();
+  img.onload=()=>{
+    const cv=document.createElement("canvas");
+    cv.width=cv.height=160;
+    const lado=Math.min(img.width,img.height);
+    cv.getContext("2d").drawImage(img,(img.width-lado)/2,(img.height-lado)/2,lado,lado,0,0,160,160);
+    localStorage.setItem("moraes_foto",cv.toDataURL("image/jpeg",0.85));
+    render();
+  };
+  img.src=URL.createObjectURL(f);
+};
+if(!conv()){
+  if(convs.length)atual=convs[0].id;else nova();
+}
+render();
 </script>
 </body>
-</html>
+  </html>
