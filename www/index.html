@@ -45,43 +45,44 @@ async function enviar() {
   const pergunta = texto.value.trim();
   if (!pergunta) return;
 
-  let chave = localStorage.getItem("chave");
+  let chave = localStorage.getItem("chave_gemini");
   if (!chave) {
-    chave = prompt("Cole aqui sua chave da API (fica só no seu celular):");
+    chave = prompt("Cole aqui sua chave do Gemini (fica só no seu celular):");
     if (!chave) return;
-    localStorage.setItem("chave", chave.trim());
+    localStorage.setItem("chave_gemini", chave.trim());
   }
 
   texto.value = "";
   mostrar("eu", pergunta);
-  historico.push({ role: "user", content: pergunta });
+  historico.push({ role: "user", parts: [{ text: pergunta }] });
   const caixa = mostrar("ia", "Pensando…");
 
   try {
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": localStorage.getItem("chave"),
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true"
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-5-5",
-        max_tokens: 1000,
-        system: "Você é a Moraes, uma assistente simpática que responde em português.",
-        messages: historico
-      })
-    });
+    const r = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": localStorage.getItem("chave_gemini")
+        },
+        body: JSON.stringify({
+          system_instruction: {
+            parts: [{ text: "Você é a Moraes, uma assistente simpática que responde em português." }]
+          },
+          contents: historico
+        })
+      }
+    );
     const dados = await r.json();
     if (dados.error) throw new Error(dados.error.message);
-    const resposta = dados.content[0].text;
-    historico.push({ role: "assistant", content: resposta });
+    const resposta = dados.candidates[0].content.parts[0].text;
+    historico.push({ role: "model", parts: [{ text: resposta }] });
     caixa.textContent = resposta;
   } catch (e) {
     historico.pop();
     caixa.textContent = "Erro: " + e.message;
-    if (/api.key|auth/i.test(e.message)) localStorage.removeItem("chave");
+    if (/api.key|auth/i.test(e.message)) localStorage.removeItem("chave_gemini");
   }
 }
 
